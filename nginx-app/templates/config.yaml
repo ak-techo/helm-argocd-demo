@@ -1,0 +1,10 @@
+{{- if .Values.configmapNginxIndex.enabled -}}
+apiVersion: v1 
+kind: ConfigMap 
+metadata: 
+  name: {{ .Values.configmapNginxIndex.name }} 
+  labels:
+{{ toYaml .Values.labels | indent 4 }}
+data: 
+    index.html: {{ tpl (.Files.Get  .Values.configmapNginxIndex.file) . | quote }}
+{{- end }}
