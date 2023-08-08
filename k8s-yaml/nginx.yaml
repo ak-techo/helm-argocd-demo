@@ -1,0 +1,147 @@
+---
+# Source: nginx-app/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "nginx-app-test-connection"
+  labels:
+    helm.sh/chart: nginx-app-0.1.0
+    app.kubernetes.io/name: nginx-app
+    app.kubernetes.io/instance: nginx-app
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['nginx-app:80']
+  restartPolicy: Never
+MANIFEST:
+---
+# Source: nginx-app/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nginx-app
+  labels:
+    helm.sh/chart: nginx-app-0.1.0
+    app.kubernetes.io/name: nginx-app
+    app.kubernetes.io/instance: nginx-app
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: nginx-app/templates/config.yaml
+apiVersion: v1 
+kind: ConfigMap 
+metadata: 
+  name: nginx-dev-config 
+  labels:
+    null
+data: 
+    index.html: "<h1> Techolution - GCP Team - Crossplane session</h1>"
+---
+# Source: nginx-app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-app
+  labels:
+    helm.sh/chart: nginx-app-0.1.0
+    app.kubernetes.io/name: nginx-app
+    app.kubernetes.io/instance: nginx-app
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: nginx-app
+    app.kubernetes.io/instance: nginx-app
+---
+# Source: nginx-app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-app
+  labels:
+    helm.sh/chart: nginx-app-0.1.0
+    app.kubernetes.io/name: nginx-app
+    app.kubernetes.io/instance: nginx-app
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nginx-app
+      app.kubernetes.io/instance: nginx-app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nginx-app
+        app.kubernetes.io/instance: nginx-app
+    spec:
+      serviceAccountName: nginx-app
+      securityContext:
+        {}
+      containers:
+        - name: nginx-app
+          securityContext:
+            {}
+          image: "nginx:1.16.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /usr/share/nginx/html/index.html
+              name: nginx-config-volume
+              subPath: index.html
+      volumes:
+        - configMap:
+            defaultMode: 484
+            name: nginx-dev-config
+          name: nginx-config-volume
+---
+# Source: nginx-app/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-app
+  labels:
+    helm.sh/chart: nginx-app-0.1.0
+    app.kubernetes.io/name: nginx-app
+    app.kubernetes.io/instance: nginx-app
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx-app
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
